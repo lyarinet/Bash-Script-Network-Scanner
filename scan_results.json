@@ -1,0 +1,9 @@
+[
+{"ip":"192.168.2.1","mac":"58:D5:6E:93:F6:7E","hostname":"","wg_domain":"","manufacturer":"D-Link International"},
+{"ip":"192.168.2.123","mac":"","hostname":"FIDA","wg_domain":"WORKGROUP","manufacturer":""},
+{"ip":"192.168.2.103","mac":"BC:24:11:A6:F5:B8","hostname":"FIDA","wg_domain":"WORKGROUP","manufacturer":"Unknown"},
+{"ip":"192.168.2.140","mac":"BC:24:11:F8:B2:42","hostname":"FIDA","wg_domain":"WORKGROUP","manufacturer":"Unknown"},
+{"ip":"192.168.2.141","mac":"BC:24:11:D8:7C:4C","hostname":"","wg_domain":"","manufacturer":"Unknown"},
+{"ip":"192.168.2.22","mac":"00:24:EC:F0:BD:BF","hostname":"PVE","wg_domain":"WORKGROUP","manufacturer":"United Information Technology"},
+{"ip":"192.168.2.104","mac":"1C:4D:70:F0:1E:55","hostname":"","wg_domain":"","manufacturer":"Intel Corporate"}
+]
