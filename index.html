@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Network Scan Results</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=JetBrains+Mono&family=Exo+2:wght@600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      /* Dark & Vibrant Color Palette */
+      --bg-dark: #0D1117;
+      --bg-surface: #161B22;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --text-primary: #c9d1d9;
+      --text-secondary: #8b949e;
+      --accent-primary: #58A6FF; /* Bright Blue */
+      --accent-secondary: #F778BA; /* Pink/Magenta */
+      --accent-glow: rgba(88, 166, 255, 0.3);
+
+      --success: #3FB950;
+      --warning: #D29922;
+      --error: #F85149;
+    }
+
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: var(--bg-dark);
+      background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.04) 1px, transparent 0);
+      background-size: 25px 25px;
+      margin: 0;
+      padding: 2rem;
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: auto;
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    @keyframes rowFadeIn {
+      from { opacity: 0; transform: translateX(-15px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2.5rem;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 2rem;
+        flex-wrap: wrap;
+    }
+
+    h1 {
+      font-family: 'Exo 2', sans-serif;
+      font-size: 2.5rem;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: linear-gradient(45deg, var(--accent-primary), var(--accent-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-fill-color: transparent;
+    }
+    h1 i {
+        -webkit-text-fill-color: var(--accent-primary);
+        text-fill-color: var(--accent-primary);
+    }
+    
+    /* NEW: Search Bar Styles */
+    .search-container {
+      background: rgba(22, 27, 34, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      transition: all 0.3s ease;
+    }
+    .search-container:focus-within {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 15px var(--accent-glow);
+    }
+    .search-container i {
+      color: var(--text-secondary);
+      margin-right: 0.75rem;
+    }
+    #searchInput {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text-primary);
+      font-size: 1rem;
+      width: 250px;
+      font-family: 'Roboto', sans-serif;
+    }
+    #searchInput::placeholder {
+      color: var(--text-secondary);
+    }
+
+    .stats {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: rgba(22, 27, 34, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 0.8rem 1.2rem;
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+    .stat-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 0 15px var(--accent-glow);
+      border-color: var(--accent-primary);
+    }
+    .stat-card i { font-size: 1.3rem; }
+    .devices-count { color: var(--accent-primary); }
+    .unique-mac { color: var(--success); }
+    .unknown { color: var(--warning); }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(22, 27, 34, 0.5);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+      margin-bottom: 2rem;
+    }
+
+    th, td {
+      padding: 16px 20px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    thead {
+      background-color: rgba(13, 17, 23, 0.6);
+      position: sticky; top: 0; z-index: 10;
+    }
+    thead th {
+      font-family: 'Exo 2', sans-serif;
+      font-weight: 600; text-transform: uppercase;
+      font-size: 0.8rem; letter-spacing: 1px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid var(--accent-primary);
+    }
+
+    tbody tr {
+      transition: background-color 0.3s ease;
+      position: relative;
+    }
+    tbody tr.data-row {
+      opacity: 0;
+      animation: rowFadeIn 0.5s ease-out forwards;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr::before {
+      content: ''; position: absolute; left: 0; top: 0;
+      height: 100%; width: 3px;
+      background-color: var(--accent-primary);
+      transform: scaleY(0); transition: transform 0.3s ease-in-out;
+    }
+    tbody tr:hover { background-color: rgba(88, 166, 255, 0.08); }
+    tbody tr:hover::before { transform: scaleY(1); }
+    .mac-address { font-family: 'JetBrains Mono', monospace; font-size: 0.9em; color: var(--text-secondary); }
+    .device-type {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.3rem 0.6rem; border-radius: 5px; font-size: 0.75rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    }
+    .status-indicator {
+      display: inline-block; width: 10px; height: 10px;
+      border-radius: 50%; margin-right: 8px; box-shadow: 0 0 8px;
+    }
+    .status-online { background-color: var(--success); color: var(--success); }
+    .status-offline { background-color: var(--error); color: var(--error); }
+    .status-unknown { background-color: var(--warning); color: var(--warning); }
+    
+    footer {
+      text-align: center; margin-top: 2rem; font-size: 0.9rem;
+      color: var(--text-secondary); padding: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .last-updated {
+      display: flex; justify-content: center; align-items: center;
+      gap: 1rem; margin-top: 1rem;
+    }
+    .refresh-btn {
+      background: var(--accent-primary); color: var(--bg-dark); border: none;
+      padding: 0.6rem 1.2rem; border-radius: 8px; cursor: pointer;
+      display: flex; align-items: center; gap: 0.5rem;
+      transition: all 0.3s ease; font-weight: 700; font-family: 'Exo 2', sans-serif;
+    }
+    .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 0 20px var(--accent-glow); }
+    .refresh-btn:active { transform: translateY(0); }
+    .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    .refresh-btn .fa-spin { animation: fa-spin 1s linear infinite; }
+
+    .empty-state, .error-state, .no-results-state {
+      text-align: center; padding: 4rem; color: var(--text-secondary);
+    }
+    .empty-state i, .error-state i, .no-results-state i {
+      font-size: 3.5rem; margin-bottom: 1rem; display: block;
+    }
+    .empty-state i { color: var(--accent-primary); }
+    .error-state i { color: var(--error); }
+    .no-results-state i { color: var(--warning); }
+    .hidden { display: none; }
+    
+    @media (max-width: 992px) {
+      .header-left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1.5rem;
+      }
+    }
+    @media (max-width: 768px) {
+      body { padding: 1rem; }
+      header { flex-direction: column; align-items: flex-start; }
+      table { display: block; overflow-x: auto; }
+      th, td { min-width: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+        <div class="header-left">
+            <h1><i class="fas fa-network-wired"></i> Network Scan</h1>
+            <div class="search-container">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search devices...">
+            </div>
+        </div>
+        <div class="stats" id="statsContainer">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+    </header>
+    
+    <table id="scanTable">
+      <thead>
+        <tr>
+          <th>Status</th>
+          <th>IP Address</th>
+          <th>MAC Address</th>
+          <th>Hostname</th>
+          <th>WG/Domain</th>
+          <th>Manufacturer</th>
+          <th>Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Data rows will be inserted here -->
+        <tr id="noResultsRow" class="hidden">
+          <td colspan="7" class="no-results-state">
+            <i class="fas fa-search"></i>
+            <h3>No Matching Devices</h3>
+            <p>Your search returned no results.</p>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    
+    <footer>
+      <p>&copy; 2025 All rights reserved.</p>
+      <p>Developed by <a href="https://lyarinet.com" target="_blank" style="color: #007bff; text-decoration: none;">Asifagaria</a></p>  
+      <div class="last-updated">
+        <button class="refresh-btn" id="refreshBtn">
+          <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+        <span id="lastUpdated">Last updated: Just now</span>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    function generateVibrantColorFromString(str) {
+      if (!str) return '#444444';
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+      const h = hash % 360, s = 90, l = 60;
+      return `hsl(${h}, ${s}%, ${l}%)`;
+    }
+
+    function getContrastTextColor(bgColor) {
+        const lightness = parseInt(bgColor.match(/,\s*(\d+)%\)/)[1]);
+        return lightness > 65 ? '#000000' : '#FFFFFF';
+    }
+    
+    function detectDeviceType(entry) {
+      if (!entry.manufacturer && !entry.hostname) return 'unknown';
+      const manufacturer = (entry.manufacturer || '').toLowerCase();
+      const hostname = (entry.hostname || '').toLowerCase();
+      if (manufacturer.includes('cisco') || manufacturer.includes('ubiquiti') || manufacturer.includes('aruba') || hostname.includes('router')) return 'router';
+      if (hostname.includes('server') || hostname.includes('srv') || hostname.includes('nas') || hostname.includes('storage')) return 'server';
+      if (manufacturer.includes('apple') || manufacturer.includes('samsung') || manufacturer.includes('google') || hostname.includes('phone') || hostname.includes('iphone') || hostname.includes('android')) return 'mobile';
+      if (manufacturer.includes('dell') || manufacturer.includes('hp') || manufacturer.includes('lenovo') || hostname.includes('pc') || hostname.includes('desktop') || hostname.includes('laptop')) return 'desktop';
+      if (manufacturer.includes('sonos') || manufacturer.includes('philips') || manufacturer.includes('amazon') || hostname.includes('echo') || hostname.includes('nest') || hostname.includes('iot') || hostname.includes('smart')) return 'iot';
+      return 'generic';
+    }
+    
+    function formatMAC(mac) {
+      if (!mac) return 'N/A';
+      const cleaned = mac.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
+      if (cleaned.length !== 12) return mac; 
+      return cleaned.match(/.{1,2}/g).join(':');
+    }
+    
+    function loadData() {
+      const tbody = document.querySelector('#scanTable tbody');
+      const statsContainer = document.querySelector('#statsContainer');
+      const lastUpdatedSpan = document.getElementById('lastUpdated');
+      
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Scanning Network...</h3></td></tr> <tr id="noResultsRow" class="hidden"><td colspan="7" class="no-results-state"><i class="fas fa-search"></i><h3>No Matching Devices</h3><p>Your search returned no results.</p></td></tr>`;
+
+      fetch('scan_results.json?' + new Date().getTime())
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            return response.json();
+        })
+        .then(data => {
+          lastUpdatedSpan.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+          
+          const existingRows = tbody.querySelectorAll('tr.data-row');
+          existingRows.forEach(row => row.remove());
+          
+          if (!data || data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-search-minus"></i><h3>No Devices Found</h3><p>Your network scan returned no active devices.</p></td></tr>`;
+            statsContainer.innerHTML = '';
+            return;
+          }
+          
+          tbody.querySelector('tr:not(#noResultsRow)')?.remove(); // Clear loading/initial state
+          
+          const uniqueMACs = new Set(data.map(entry => entry.mac).filter(Boolean)).size;
+          const unknownDevices = data.filter(entry => !entry.manufacturer || entry.manufacturer.toLowerCase().includes('unknown')).length;
+          
+          statsContainer.innerHTML = `
+            <div class="stat-card"><i class="fas fa-laptop-house devices-count"></i><span>${data.length} Devices</span></div>
+            <div class="stat-card"><i class="fas fa-fingerprint unique-mac"></i><span>${uniqueMACs} Unique MACs</span></div>
+            <div class="stat-card"><i class="fas fa-question-circle unknown"></i><span>${unknownDevices} Unknown</span></div>`;
+          
+          data.forEach((entry, index) => {
+            const row = document.createElement('tr');
+            row.classList.add('data-row'); // Add class for easy selection
+            const deviceType = detectDeviceType(entry);
+            const status = entry.ip ? 'online' : 'offline';
+            
+            row.style.animationDelay = `${index * 40}ms`;
+            row.innerHTML = `
+              <td><span class="status-indicator status-${status}"></span>${status.charAt(0).toUpperCase() + status.slice(1)}</td>
+              <td>${entry.ip || 'N/A'}</td>
+              <td class="mac-address">${formatMAC(entry.mac)}</td>
+              <td>${entry.hostname || 'N/A'}</td>
+              <td>${entry.wg_domain || 'N/A'}</td>
+              <td>${entry.manufacturer || 'N/A'}</td>
+              <td><span class="device-type"><i class="fas ${getDeviceIcon(deviceType)}"></i><span>${deviceType}</span></span></td>`;
+            
+            const typeSpan = row.querySelector('.device-type');
+            const bgColor = generateVibrantColorFromString(deviceType);
+            const textColor = getContrastTextColor(bgColor);
+            typeSpan.style.backgroundColor = bgColor;
+            typeSpan.style.color = textColor;
+            
+            tbody.insertBefore(row, document.getElementById('noResultsRow'));
+          });
+
+          filterTable(); // Apply search filter to new data
+        })
+        .catch(err => {
+          console.error('Failed to load scan_results.json:', err);
+          tbody.innerHTML = `<tr><td colspan="7" class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error Loading Results</h3><p>${err.message}. Check the console and if scan_results.json exists.</p></td></tr>`;
+        });
+    }
+
+    /**
+     * NEW: Filters the table rows based on the search input.
+     */
+    function filterTable() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll('#scanTable tbody tr.data-row');
+        const noResultsRow = document.getElementById('noResultsRow');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            if (rowText.includes(query)) {
+                row.classList.remove('hidden');
+                visibleCount++;
+            } else {
+                row.classList.add('hidden');
+            }
+        });
+
+        if (visibleCount === 0 && rows.length > 0) {
+            noResultsRow.classList.remove('hidden');
+        } else {
+            noResultsRow.classList.add('hidden');
+        }
+    }
+    
+    function getDeviceIcon(deviceType) {
+      switch(deviceType) {
+        case 'router': return 'fa-router';
+        case 'server': return 'fa-server';
+        case 'desktop': return 'fa-desktop';
+        case 'mobile': return 'fa-mobile-alt';
+        case 'iot': return 'fa-microchip';
+        case 'generic': return 'fa-cube';
+        default: return 'fa-question';
+      }
+    }
+    
+    // --- Event Listeners ---
+    document.addEventListener('DOMContentLoaded', loadData);
+    
+    document.getElementById('searchInput').addEventListener('keyup', filterTable);
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      const btn = document.getElementById('refreshBtn');
+      const icon = btn.querySelector('i');
+      
+      icon.classList.remove('fa-sync-alt');
+      icon.classList.add('fa-spinner', 'fa-spin');
+      btn.disabled = true;
+      
+      loadData();
+      
+      setTimeout(() => {
+        icon.classList.remove('fa-spinner', 'fa-spin');
+        icon.classList.add('fa-sync-alt');
+        btn.disabled = false;
+      }, 1500);
+    });
+    
+    setInterval(loadData, 60000);
+  </script>
+</body>
+</html>
