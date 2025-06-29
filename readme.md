@@ -1,6 +1,9 @@
 ![image](https://github.com/user-attachments/assets/b56260c0-d325-4609-80ff-95b111a58b96)
 
-![image](https://github.com/user-attachments/assets/21ceeb9e-69d7-4817-8582-e56b9bb03165)
+![image](https://github.com/user-attachments/assets/e6bc3bd8-2878-43c2-84b3-821a9bc77532)
+
+
+
 
 
 # 🔍 Lyarinet Bash Script Network Scanner Result Viewer With Browser
