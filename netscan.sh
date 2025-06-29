@@ -10,10 +10,22 @@ NC="\033[0m"
 # Check dependencies
 check_dependencies() {
   echo -e "${CYAN}Checking dependencies...${NC}"
-  for cmd in nmap tcpdump perl jq parallel; do
+  for cmd in nmap tcpdump perl jq parallel smbclient; do
     if ! command -v "$cmd" >/dev/null 2>&1; then
-      echo -e "${RED}Error:${NC} $cmd is not installed."
-      exit 1
+      if [ "$cmd" = "parallel" ]; then
+        echo -e "${RED}Error:${NC} GNU Parallel is not installed."
+        echo -e "${YELLOW}Install it using:${NC} sudo apt install parallel"
+        exit 1
+      elif [ "$cmd" = "smbclient" ]; then
+        echo -e "${YELLOW}smbclient not found. Installing...${NC}"
+        apt update && apt install -y smbclient || {
+          echo -e "${RED}Failed to install smbclient${NC}"
+          exit 1
+        }
+      else
+        echo -e "${RED}Error:${NC} $cmd is not installed."
+        exit 1
+      fi
     fi
   done
 }
@@ -47,6 +59,13 @@ get_interfaces() {
     echo -e "${RED}Invalid choice.${NC}"
     exit 1
   fi
+
+  echo
+  for iface in "${interfaces[@]}"; do
+    ip_address=$(ip -o -f inet addr show "$iface" | awk '{print $4}')
+    echo -e "${YELLOW}Selected interface:${NC} $iface ${ip_address:+(IP: $ip_address)}"
+  done
+  echo
 }
 
 # Choose scan type
@@ -76,7 +95,7 @@ multicast_scan() {
 scan_host() {
   local IP="$1"
   local udp="$2"
-  local output MAC HOSTNAME WG_DOMAIN MANUFACTURER
+  local output MAC HOSTNAME WG_DOMAIN MANUFACTURER SHARES
 
   if [ "$udp" = "true" ]; then
     echo -e "\n${YELLOW}UDP Scan: $IP${NC}"
@@ -90,16 +109,22 @@ scan_host() {
   WG_DOMAIN=$(echo "$output" | grep -v '<permanent>' | grep '<00>.*<group>.*<active>' | awk -F'[|<]' '{print $2}' | tr -d '_' | xargs)
   MANUFACTURER=$(echo "$output" | grep 'MAC Address' | awk -F'(' '{print $2}' | cut -d ')' -f1)
 
-  # fallback to DHCP lease
+  if nc -z -w1 "$IP" 445 2>/dev/null; then
+    smbclient_output=$(smbclient -L "//$IP" -N 2>/dev/null)
+    SHARES=$(echo "$smbclient_output" | awk '/Disk/ && !/IPC/ {print $1}' | paste -sd "," -)
+  else
+    SHARES=""
+  fi
+
   local lease_file="/var/lib/dhcp/dhcpd.leases"
   if [ -f "$lease_file" ] && [ -z "$HOSTNAME" ]; then
     HOSTNAME=$(awk -v ip="$IP" '$1 == "lease" && $2 == ip {f=1} f && /client-hostname/ {print substr($2, 2, length($2) - 3); exit}' "$lease_file" | cut -c 1-15)
     [ -n "$HOSTNAME" ] && HOSTNAME="$HOSTNAME *"
   fi
 
-  printf "%-14s | %-17s | %-17s | %-15s | %-30s\n" "$IP" "$MAC" "$HOSTNAME" "$WG_DOMAIN" "$MANUFACTURER"
-  echo "$IP,$MAC,$HOSTNAME,$WG_DOMAIN,$MANUFACTURER" >> scan_results.csv
-  echo "{\"ip\":\"$IP\",\"mac\":\"$MAC\",\"hostname\":\"$HOSTNAME\",\"wg_domain\":\"$WG_DOMAIN\",\"manufacturer\":\"$MANUFACTURER\"}," >> scan_results.json.tmp
+  printf "%-14s | %-17s | %-17s | %-15s | %-20s | %-30s\n" "$IP" "$MAC" "$HOSTNAME" "$WG_DOMAIN" "$SHARES" "$MANUFACTURER"
+  echo "$IP,$MAC,$HOSTNAME,$WG_DOMAIN,$SHARES,$MANUFACTURER" >> scan_results.csv
+  echo "{\"ip\":\"$IP\",\"mac\":\"$MAC\",\"hostname\":\"$HOSTNAME\",\"wg_domain\":\"$WG_DOMAIN\",\"shares\":\"$SHARES\",\"manufacturer\":\"$MANUFACTURER\"}," >> scan_results.json.tmp
 }
 
 # Perform scan
@@ -111,7 +136,6 @@ perform_scan() {
   for iface in "${interfaces[@]}"; do
     ip_range=$(ip -o -f inet addr show "$iface" | awk '{print $4}' | sed 's/\.[0-9]*\//.0\//')
     [ -z "$ip_range" ] && echo -e "${YELLOW}Skipping $iface${NC}" && continue
-
     echo -e "${CYAN}Scanning $ip_range...${NC}"
     mapfile -t iface_ips < <(nmap -sn "$ip_range" | awk '/Nmap scan report/{gsub(/[()]/,"",$NF); print $NF}')
     all_ips+=("${iface_ips[@]}")
@@ -119,13 +143,12 @@ perform_scan() {
 
   IFS=$'\n' read -r -d '' -a ips < <(printf "%s\n" "${all_ips[@]}" | sort -u && printf '\0')
 
-  echo "IP,MAC,HOSTNAME,WG_DOMAIN,MANUFACTURER" > scan_results.csv
+  echo "IP,MAC,HOSTNAME,WG_DOMAIN,SHARES,MANUFACTURER" > scan_results.csv
   echo "[" > scan_results.json.tmp
 
-  # Header
   echo -e "\n${CYAN}Results:${NC}"
-  printf "%-14s | %-17s | %-17s | %-15s | %-30s\n" "IP" "MAC" "HOSTNAME" "WG/DOMAIN" "MANUFACTURER"
-  printf "%s\n" "$(printf '%0.s-' {1..100})"
+  printf "%-14s | %-17s | %-17s | %-15s | %-20s | %-30s\n" "IP" "MAC" "HOSTNAME" "WG/DOMAIN" "SHARES" "MANUFACTURER"
+  printf "%s\n" "$(printf '%0.s-' {1..120})"
 
   export -f scan_host
   parallel -j4 scan_host ::: "${ips[@]}" ::: "$udp_scan"
