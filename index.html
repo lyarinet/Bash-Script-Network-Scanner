@@ -15,7 +15,7 @@
       --text-primary: #c9d1d9;
       --text-secondary: #8b949e;
       --accent-primary: #58A6FF; /* Bright Blue */
-      --accent-secondary: #F778BA; /* Pink/Magenta */
+      --accent-secondary: #F77BAA; /* Pink/Magenta */
       --accent-glow: rgba(88, 166, 255, 0.3);
 
       --success: #3FB950;
@@ -85,7 +85,6 @@
         text-fill-color: var(--accent-primary);
     }
     
-    /* NEW: Search Bar Styles */
     .search-container {
       background: rgba(22, 27, 34, 0.5);
       backdrop-filter: blur(10px);
@@ -250,7 +249,7 @@
       body { padding: 1rem; }
       header { flex-direction: column; align-items: flex-start; }
       table { display: block; overflow-x: auto; }
-      th, td { min-width: 150px; }
+      th, td { min-width: 150px; } /* Ensure cells have minimum width on smaller screens */
     }
   </style>
 </head>
@@ -279,12 +278,13 @@
           <th>WG/Domain</th>
           <th>Manufacturer</th>
           <th>Type</th>
+          <th>Shares</th> <!-- New Column Header -->
         </tr>
       </thead>
       <tbody>
         <!-- Data rows will be inserted here -->
         <tr id="noResultsRow" class="hidden">
-          <td colspan="7" class="no-results-state">
+          <td colspan="8" class="no-results-state"> <!-- Updated colspan to 8 -->
             <i class="fas fa-search"></i>
             <h3>No Matching Devices</h3>
             <p>Your search returned no results.</p>
@@ -294,7 +294,7 @@
     </table>
     
     <footer>
-      <p>&copy; 2025 All rights reserved.</p>
+      <p>© 2025 All rights reserved.</p>
       <p>Developed by <a href="https://lyarinet.com" target="_blank" style="color: #007bff; text-decoration: none;">Asifagaria</a></p>  
       <div class="last-updated">
         <button class="refresh-btn" id="refreshBtn">
@@ -306,79 +306,175 @@
   </div>
 
   <script>
+    // --- Utility Functions ---
+
+    /**
+     * Generates a vibrant HSL color string based on an input string.
+     * @param {string} str - The string to generate a color from.
+     * @returns {string} A vibrant HSL color string.
+     */
     function generateVibrantColorFromString(str) {
-      if (!str) return '#444444';
+      if (!str) return '#444444'; // Default color if no string is provided
       let hash = 0;
-      for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      const h = hash % 360, s = 90, l = 60;
+      for (let i = 0; i < str.length; i++) {
+        hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        hash = hash & hash; // Convert to 32bit integer
+      }
+      // Ensure hue is positive, saturation and lightness are high for vibrancy
+      const h = ((hash % 360) + 360) % 360; // Ensure hue is positive
+      const s = 90; // High saturation
+      const l = 60; // Medium lightness for vibrancy
       return `hsl(${h}, ${s}%, ${l}%)`;
     }
 
+    /**
+     * Determines the best contrast text color (black or white) for a given background color.
+     * Uses a luminance calculation for better accuracy.
+     * @param {string} bgColor - The background color in hex format (e.g., '#RRGGBB').
+     * @returns {string} The contrasting text color ('#000000' or '#FFFFFF').
+     */
     function getContrastTextColor(bgColor) {
-        const lightness = parseInt(bgColor.match(/,\s*(\d+)%\)/)[1]);
-        return lightness > 65 ? '#000000' : '#FFFFFF';
+        // This function assumes bgColor is a hex color string like '#RRGGBB'.
+        // If it can be other formats, more parsing would be needed.
+        if (!bgColor || bgColor === '#444444') return '#FFFFFF'; // Handle default or invalid colors
+        
+        try {
+            // Convert hex to RGB
+            const hex = bgColor.replace('#', '');
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            
+            // Calculate luminance using the WCAG 2.0 formula
+            const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+            
+            // Threshold for deciding contrast color (adjust if needed)
+            return luminance > 140 ? '#000000' : '#FFFFFF'; 
+        } catch (e) {
+            console.error("Error calculating contrast color for:", bgColor, e);
+            return '#FFFFFF'; // Fallback color in case of parsing error
+        }
     }
     
+    /**
+     * Classifies a device type based on its manufacturer and hostname.
+     * @param {object} entry - The device data object.
+     * @returns {string} The classified device type.
+     */
     function detectDeviceType(entry) {
       if (!entry.manufacturer && !entry.hostname) return 'unknown';
       const manufacturer = (entry.manufacturer || '').toLowerCase();
       const hostname = (entry.hostname || '').toLowerCase();
-      if (manufacturer.includes('cisco') || manufacturer.includes('ubiquiti') || manufacturer.includes('aruba') || hostname.includes('router')) return 'router';
-      if (hostname.includes('server') || hostname.includes('srv') || hostname.includes('nas') || hostname.includes('storage')) return 'server';
-      if (manufacturer.includes('apple') || manufacturer.includes('samsung') || manufacturer.includes('google') || hostname.includes('phone') || hostname.includes('iphone') || hostname.includes('android')) return 'mobile';
-      if (manufacturer.includes('dell') || manufacturer.includes('hp') || manufacturer.includes('lenovo') || hostname.includes('pc') || hostname.includes('desktop') || hostname.includes('laptop')) return 'desktop';
-      if (manufacturer.includes('sonos') || manufacturer.includes('philips') || manufacturer.includes('amazon') || hostname.includes('echo') || hostname.includes('nest') || hostname.includes('iot') || hostname.includes('smart')) return 'iot';
+
+      if (hostname.includes('router') || manufacturer.includes('cisco') || manufacturer.includes('ubiquiti') || manufacturer.includes('aruba') || manufacturer.includes('mikrotik')) return 'router';
+      if (hostname.includes('server') || hostname.includes('srv') || hostname.includes('nas') || hostname.includes('storage') || manufacturer.includes('synology') || manufacturer.includes('qnap')) return 'server';
+      if (hostname.includes('phone') || hostname.includes('iphone') || hostname.includes('android') || manufacturer.includes('apple') || manufacturer.includes('samsung') || manufacturer.includes('google')) return 'mobile';
+      if (hostname.includes('pc') || hostname.includes('desktop') || hostname.includes('laptop') || manufacturer.includes('dell') || manufacturer.includes('hp') || manufacturer.includes('lenovo')) return 'desktop';
+      if (hostname.includes('echo') || hostname.includes('nest') || hostname.includes('iot') || hostname.includes('smart') || manufacturer.includes('sonos') || manufacturer.includes('philips') || manufacturer.includes('amazon') || manufacturer.includes('ring') || manufacturer.includes('xiaomi')) return 'iot';
+      
       return 'generic';
     }
     
+    /**
+     * Formats a MAC address string into the standard XX:XX:XX:XX:XX:XX format.
+     * @param {string} mac - The MAC address string to format.
+     * @returns {string} The formatted MAC address or 'N/A'.
+     */
     function formatMAC(mac) {
       if (!mac) return 'N/A';
-      const cleaned = mac.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
-      if (cleaned.length !== 12) return mac; 
-      return cleaned.match(/.{1,2}/g).join(':');
+      const cleaned = mac.replace(/[^a-fA-F0-9]/g, '').toUpperCase(); // Remove non-hex characters and convert to uppercase
+      if (cleaned.length !== 12) return mac; // Return original if it's not a standard 12-hex-char MAC
+      return cleaned.match(/.{1,2}/g).join(':'); // Split into pairs and join with ':'
     }
     
+    /**
+     * Fetches network scan data, populates the table, and updates statistics.
+     */
     function loadData() {
       const tbody = document.querySelector('#scanTable tbody');
       const statsContainer = document.querySelector('#statsContainer');
       const lastUpdatedSpan = document.getElementById('lastUpdated');
-      
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Scanning Network...</h3></td></tr> <tr id="noResultsRow" class="hidden"><td colspan="7" class="no-results-state"><i class="fas fa-search"></i><h3>No Matching Devices</h3><p>Your search returned no results.</p></td></tr>`;
+      const noResultsRow = document.getElementById('noResultsRow'); // Get reference to noResultsRow
 
-      fetch('scan_results.json?' + new Date().getTime())
+      // --- Clear existing data rows and show loading state ---
+      const existingDataRows = tbody.querySelectorAll('tr.data-row');
+      existingDataRows.forEach(row => row.remove());
+      
+      // Ensure noResultsRow is hidden during loading/data fetching
+      if (noResultsRow) {
+          noResultsRow.classList.add('hidden');
+      }
+
+      // Add a loading indicator row. Colspan is 8 because we now have 8 columns.
+      const loadingRow = document.createElement('tr');
+      loadingRow.innerHTML = `<td colspan="8" class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Scanning Network...</h3></td>`;
+      tbody.prepend(loadingRow); // Add to the beginning of tbody
+
+      // --- Fetch data from JSON file ---
+      fetch('scan_results.json?' + new Date().getTime()) // Append timestamp to prevent caching
         .then(response => {
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            if (!response.ok) {
+                let errorMsg = `HTTP error! Status: ${response.status}`;
+                if (response.status === 404) {
+                    errorMsg = "scan_results.json not found. Ensure the file exists in the same directory.";
+                } else if (response.status === 500) {
+                    errorMsg = "Server error while fetching scan results.";
+                }
+                throw new Error(errorMsg);
+            }
             return response.json();
         })
         .then(data => {
           lastUpdatedSpan.textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
           
-          const existingRows = tbody.querySelectorAll('tr.data-row');
-          existingRows.forEach(row => row.remove());
-          
+          // Remove the loading row
+          if (loadingRow && loadingRow.parentNode) {
+             loadingRow.remove();
+          }
+
+          // --- Handle Empty Data ---
           if (!data || data.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-search-minus"></i><h3>No Devices Found</h3><p>Your network scan returned no active devices.</p></td></tr>`;
-            statsContainer.innerHTML = '';
+            tbody.innerHTML = `<tr><td colspan="8" class="empty-state"><i class="fas fa-search-minus"></i><h3>No Devices Found</h3><p>Your network scan returned no active devices.</p></td></tr>`;
+            statsContainer.innerHTML = ''; // Clear stats if no data
             return;
           }
           
-          tbody.querySelector('tr:not(#noResultsRow)')?.remove(); // Clear loading/initial state
-          
-          const uniqueMACs = new Set(data.map(entry => entry.mac).filter(Boolean)).size;
+          // --- Populate Stats ---
+          const uniqueMACs = new Set(data.map(entry => entry.mac).filter(Boolean)).size; // Count only valid MACs
           const unknownDevices = data.filter(entry => !entry.manufacturer || entry.manufacturer.toLowerCase().includes('unknown')).length;
           
+          // --- Calculate Unique Share Count ---
+          let allShares = new Set();
+          data.forEach(entry => {
+              if (entry.shares) {
+                  entry.shares.split(',')
+                      .map(share => share.trim())
+                      .filter(share => share) // Filter out any empty strings
+                      .forEach(share => allShares.add(share));
+              }
+          });
+          const uniqueShareCount = allShares.size;
+
           statsContainer.innerHTML = `
             <div class="stat-card"><i class="fas fa-laptop-house devices-count"></i><span>${data.length} Devices</span></div>
             <div class="stat-card"><i class="fas fa-fingerprint unique-mac"></i><span>${uniqueMACs} Unique MACs</span></div>
-            <div class="stat-card"><i class="fas fa-question-circle unknown"></i><span>${unknownDevices} Unknown</span></div>`;
+            <div class="stat-card"><i class="fas fa-question-circle unknown"></i><span>${unknownDevices} Unknown</span></div>
+            <div class="stat-card"><i class="fas fa-share-alt"></i><span>${uniqueShareCount} Unique Shares</span></div> <!-- New Share Count Stat -->
+          `;
           
+          // --- Populate Table Rows ---
           data.forEach((entry, index) => {
             const row = document.createElement('tr');
-            row.classList.add('data-row'); // Add class for easy selection
-            const deviceType = detectDeviceType(entry);
+            row.classList.add('data-row'); // Add class for easy selection and animation
+            
             const status = entry.ip ? 'online' : 'offline';
+            const deviceType = detectDeviceType(entry);
+            
+            const deviceTypeColor = generateVibrantColorFromString(deviceType);
+            const deviceTypeTextContrast = getContrastTextColor(deviceTypeColor);
             
             row.style.animationDelay = `${index * 40}ms`;
+            
             row.innerHTML = `
               <td><span class="status-indicator status-${status}"></span>${status.charAt(0).toUpperCase() + status.slice(1)}</td>
               <td>${entry.ip || 'N/A'}</td>
@@ -386,33 +482,50 @@
               <td>${entry.hostname || 'N/A'}</td>
               <td>${entry.wg_domain || 'N/A'}</td>
               <td>${entry.manufacturer || 'N/A'}</td>
-              <td><span class="device-type"><i class="fas ${getDeviceIcon(deviceType)}"></i><span>${deviceType}</span></span></td>`;
+              <td>
+                <span class="device-type" style="background-color: ${deviceTypeColor}; color: ${deviceTypeTextContrast};">
+                  <i class="fas ${getDeviceIcon(deviceType)}"></i>
+                  <span>${deviceType}</span>
+                </span>
+              </td>
+              <td>${entry.shares || 'N/A'}</td> <!-- New: Displaying Shares -->
+            `;
             
-            const typeSpan = row.querySelector('.device-type');
-            const bgColor = generateVibrantColorFromString(deviceType);
-            const textColor = getContrastTextColor(bgColor);
-            typeSpan.style.backgroundColor = bgColor;
-            typeSpan.style.color = textColor;
-            
-            tbody.insertBefore(row, document.getElementById('noResultsRow'));
+            tbody.insertBefore(row, noResultsRow); // Insert new row before the noResultsRow template
           });
 
-          filterTable(); // Apply search filter to new data
+          filterTable(); // Apply search filter to the newly loaded data
         })
         .catch(err => {
           console.error('Failed to load scan_results.json:', err);
-          tbody.innerHTML = `<tr><td colspan="7" class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error Loading Results</h3><p>${err.message}. Check the console and if scan_results.json exists.</p></td></tr>`;
+          if (loadingRow && loadingRow.parentNode) {
+             loadingRow.remove();
+          }
+
+          tbody.innerHTML = `<tr><td colspan="8" class="error-state"><i class="fas fa-exclamation-triangle"></i><h3>Error Loading Results</h3><p>${err.message}</p></td></tr>`;
         });
     }
 
     /**
-     * NEW: Filters the table rows based on the search input.
+     * Filters the table rows based on the search input.
+     * Makes sure to handle the visibility of the "no results" row.
      */
     function filterTable() {
-        const query = document.getElementById('searchInput').value.toLowerCase();
+        const searchInput = document.getElementById('searchInput');
+        if (!searchInput) {
+            console.warn("searchInput element not found. Cannot filter.");
+            return;
+        }
+        const query = searchInput.value.toLowerCase();
+
         const rows = document.querySelectorAll('#scanTable tbody tr.data-row');
         const noResultsRow = document.getElementById('noResultsRow');
         let visibleCount = 0;
+
+        if (!noResultsRow) {
+            console.error("noResultsRow element not found. Cannot manage search visibility.");
+            return;
+        }
 
         rows.forEach(row => {
             const rowText = row.textContent.toLowerCase();
@@ -424,13 +537,22 @@
             }
         });
 
-        if (visibleCount === 0 && rows.length > 0) {
-            noResultsRow.classList.remove('hidden');
+        if (rows.length > 0) {
+            if (visibleCount === 0) {
+                noResultsRow.classList.remove('hidden');
+            } else {
+                noResultsRow.classList.add('hidden');
+            }
         } else {
             noResultsRow.classList.add('hidden');
         }
     }
     
+    /**
+     * Returns the appropriate Font Awesome icon class for a given device type.
+     * @param {string} deviceType - The classified device type.
+     * @returns {string} The Font Awesome class name.
+     */
     function getDeviceIcon(deviceType) {
       switch(deviceType) {
         case 'router': return 'fa-router';
@@ -444,26 +566,36 @@
     }
     
     // --- Event Listeners ---
+    
     document.addEventListener('DOMContentLoaded', loadData);
     
-    document.getElementById('searchInput').addEventListener('keyup', filterTable);
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('keyup', filterTable);
+    } else {
+        console.warn("searchInput element not found. Search functionality will not work.");
+    }
 
-    document.getElementById('refreshBtn').addEventListener('click', () => {
-      const btn = document.getElementById('refreshBtn');
-      const icon = btn.querySelector('i');
-      
-      icon.classList.remove('fa-sync-alt');
-      icon.classList.add('fa-spinner', 'fa-spin');
-      btn.disabled = true;
-      
-      loadData();
-      
-      setTimeout(() => {
-        icon.classList.remove('fa-spinner', 'fa-spin');
-        icon.classList.add('fa-sync-alt');
-        btn.disabled = false;
-      }, 1500);
-    });
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        const icon = refreshBtn.querySelector('i');
+        
+        refreshBtn.disabled = true;
+        icon.classList.remove('fa-sync-alt');
+        icon.classList.add('fa-spinner', 'fa-spin');
+        
+        loadData();
+        
+        setTimeout(() => {
+          icon.classList.remove('fa-spinner', 'fa-spin');
+          icon.classList.add('fa-sync-alt');
+          refreshBtn.disabled = false;
+        }, 1500);
+      });
+    } else {
+        console.warn("refreshBtn element not found. Refresh functionality will not work.");
+    }
     
     setInterval(loadData, 60000);
   </script>
