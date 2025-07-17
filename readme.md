@@ -30,6 +30,40 @@ chmod +x netscan.sh
 ./netscan.sh
 ```
 
+Follow the on-screen prompts:
+
+1.  **Choose Network Interface(s):** Select one or more interfaces to scan. You can pick a specific interface by its number or choose `all` to scan across all detected interfaces.
+    ```
+    [1] eth0
+    [2] wlan0
+    [3] all
+    Choose interface [1-2 or all]: all
+    ```
+2.  **Choose Scan Type:**
+    *   **1) Standard (ping + nbstat):** This is the default comprehensive scan, ideal for general network discovery.
+    *   **2) UDP port scan (top 1000):** Focuses on scanning common UDP ports on discovered hosts.
+    *   **3) Listen for UDP multicast:** Enters a sniffing mode to capture multicast traffic for a specified duration.
+    ```
+    Choose scan type:
+    1) Standard (ping + nbstat)
+    2) UDP port scan (top 1000)
+    3) Listen for UDP multicast
+    Choice [1-3]: 1
+    ```
+
+Upon completion, standard and UDP scans will generate two files in the script's directory:
+
+*   `scan_results.csv`: A comma-separated values file, easily viewable in spreadsheets.
+*   `scan_results.json`: A JSON array of objects, suitable for programmatic parsing.
+
+Multicast scans will generate `multicast_<interface_name>.log` files.
+
+## 	Important Notes
+
+*   **Root Privileges:** The script requires `sudo` because `nmap`, `tcpdump`, and `smbclient` often need elevated permissions for raw socket access and certain operations.
+*   **DHCP Leases:** The script attempts to find hostnames from `/var/lib/dhcp/dhcpd.leases`. This path is hardcoded and may vary on different Linux distributions. If hostnames aren't appearing, verify this path.
+*   **Security:** Be mindful when running network scanning tools. Ensure you have permission to scan the network you are targeting.
+
 ### 2. Generate your scan results:
 Make sure your Bash scanner script outputs `scan_results.json` in the same folder as the HTML file.
 
