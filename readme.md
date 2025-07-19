@@ -1,3 +1,6 @@
+![Bash](https://img.shields.io/badge/Shell-Bash-4EAA25?logo=gnu-bash&logoColor=white) ![Nmap](https://img.shields.io/badge/Tool-Nmap-orange) ![License](https://img.shields.io/badge/License-MIT-blue)
+
+
 ![image](https://github.com/user-attachments/assets/b56260c0-d325-4609-80ff-95b111a58b96)
 
 ![image](https://github.com/user-attachments/assets/e6bc3bd8-2878-43c2-84b3-821a9bc77532)
